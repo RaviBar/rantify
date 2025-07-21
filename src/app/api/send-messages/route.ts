@@ -38,7 +38,7 @@ export async function POST(request: Request) {
         success: true,
         message: "Message Send Successfully.",
       },
-      { status: 403 }
+      { status: 200 }
     );
   } catch (error) {
     console.log("Error adding messages: ", error);

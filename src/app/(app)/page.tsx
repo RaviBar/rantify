@@ -58,7 +58,7 @@ const page = () =>{
     setIsLoading(true)  
     setIsSwitchLoading(false)
     try{
-      const response = await axios.get<ApiResponse>('/api/get-messages')
+      const response = await axios.get<ApiResponse>('/api/messages')
       setMessages(response.data.messages || [])
       if(refresh){
         toast({
@@ -112,8 +112,13 @@ const page = () =>{
     return <div>Please login</div>
   }
     const{username} = session?.user as User
-    const baseUrl = `${window.location.protocol}//${window.location.host}`
-    const profileUrl = `${baseUrl}/u/${username}`   
+    const [profileUrl, setProfileUrl] = useState("");
+
+    useEffect(() => {
+      if (typeof window !== "undefined" && username) {
+        setProfileUrl(`${window.location.protocol}//${window.location.host}/u/${username}`);
+      }
+    }, [username]);
 
     const copyToClipboard = () => {
       navigator.clipboard.writeText(profileUrl)
@@ -168,7 +173,7 @@ const page = () =>{
           {messages.length>0 ? (
             messages.map((message, index) => (
               <MessageCard
-                key={message._id}
+                key={String(message._id)}
                 message={message}
                 onMessageDelete={handleDeleteMessage}
               />

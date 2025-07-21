@@ -1,10 +1,10 @@
 import dbConnect from "@/lib/dbConnect";
 import UserModel from "@/model/User";
 import { z } from "zod";
-import { userNameValidation } from "@/schemas/signUpSchema";
+import { usernameValidation } from "@/schemas/signUpSchema";
 
 const UsernameQuerySchema = z.object({
-  username: userNameValidation,
+  username: usernameValidation,
 });
 
 export async function GET(request: Request) {
