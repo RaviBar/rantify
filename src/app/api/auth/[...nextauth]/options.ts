@@ -1,51 +1,88 @@
-import CredentialsProvider from "next-auth/providers/credentials";
-import { NextAuthOptions } from "next-auth";
-import dbConnect from "@/lib/dbConnect";
-import UserModel from "@/model/User";
-import bcrypt from "bcryptjs";
+// src/app/api/auth/[...nextauth]/options.ts
+import { NextAuthOptions } from 'next-auth';
+import CredentialsProvider from 'next-auth/providers/credentials';
+import bcrypt from 'bcryptjs';
+import dbConnect from '@/lib/dbConnect';
+import UserModel from '@/model/User';
 
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
-      name: "Credentials",
+      id: 'credentials',
+      name: 'Credentials',
       credentials: {
-        username: { label: "Username", type: "text" },
-        password: { label: "Password", type: "password" },
+        identifier: { label: 'Email or Username', type: 'text' },
+        password: { label: 'Password', type: 'password' },
       },
-      async authorize(credentials: any) {
+      async authorize(credentials: any): Promise<any> {
+        console.log('--- Authorize Function Triggered ---');
+        console.log('Received credentials object:', credentials); // Log the entire object
+
         await dbConnect();
-        const user = await UserModel.findOne({ username: credentials.username });
-        if (!user) return null;
-        const isValid = await bcrypt.compare(credentials.password, user.password);
-        if (!isValid) return null;
-        return {
-          id: String((user as any)._id),
-          username: user.username,
-        };
+        try {
+          // Find user by either email or username, case-insensitively
+          const user = await UserModel.findOne({
+            $or: [
+              { email: { $regex: new RegExp(`^${credentials.identifier}$`, 'i') } },
+              { username: { $regex: new RegExp(`^${credentials.identifier}$`, 'i') } },
+            ],
+          });
+
+          if (!user) {
+            console.log('LOGIN_ERROR: User not found with identifier:', credentials.identifier);
+            throw new Error('No user found with this email or username.');
+          }
+
+          if (!user.isVerified) {
+            console.log('LOGIN_ERROR: User found, but not verified.');
+            throw new Error('Please verify your account before logging in.');
+          }
+
+          const isPasswordCorrect = await bcrypt.compare(
+            credentials.password,
+            user.password
+          );
+
+          if (isPasswordCorrect) {
+            console.log('LOGIN_SUCCESS: Credentials valid. Returning user object.');
+            return user;
+          } else {
+            console.log('LOGIN_ERROR: Password incorrect.');
+            throw new Error('Incorrect password.');
+          }
+        } catch (err: any) {
+          console.error('Authorize error:', err.message);
+          // Re-throw the error so NextAuth.js can handle it and pass it to the frontend
+          throw new Error(err.message || 'An error occurred during authentication.');
+        }
       },
     }),
   ],
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        (token as any).id = user.id;
-        (token as any).username = user.username;
+        token._id = user._id?.toString();
+        token.isVerified = user.isVerified;
+        token.isAccesptingMessages = user.isAccesptingMessages;
+        token.username = user.username;
       }
       return token;
     },
     async session({ session, token }) {
       if (token) {
-        (session.user as any).id = token.id;
-        (session.user as any).username = token.username;
+        session.user._id = token._id;
+        session.user.isVerified = token.isVerified;
+        session.user.isAccesptingMessages = token.isAccesptingMessages;
+        session.user.username = token.username;
       }
       return session;
     },
   },
   pages: {
-    signIn: "/sign-in",
+    signIn: '/sign-in',
   },
   session: {
-    strategy: "jwt",
+    strategy: 'jwt',
   },
   secret: process.env.NEXTAUTH_SECRET,
 };

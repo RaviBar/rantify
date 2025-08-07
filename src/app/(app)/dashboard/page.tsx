@@ -1,9 +1,19 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { Loader2, RefreshCcw, Copy } from "lucide-react"; // Import Copy icon
+import MessageCard from "@/components/MessageCard";
+import { useToast } from "@/hooks/use-toast";
+import { ApiResponse } from "@/types/ApiResponse";
+import { User as UserType, Message } from "@/model/User"; // Use UserType to avoid conflict with NextAuth User
+
+import PostCard from "@/components/PostCard"; // Import PostCard
 
 function formatDate(dateStr: string) {
   const date = new Date(dateStr);
@@ -11,107 +21,268 @@ function formatDate(dateStr: string) {
 }
 
 export default function DashboardPage() {
+  const [receivedMessages, setReceivedMessages] = useState<Message[]>([]); // Renamed for clarity
+  const [userPosts, setUserPosts] = useState<any[]>([]); // State for user's own posts
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(false);
+  const [isSwitchLoading, setIsSwitchLoading] = useState(false);
+
+  const { toast } = useToast();
   const { data: session, status } = useSession();
-  const [messages, setMessages] = useState<any[]>([]);
-  const [accepting, setAccepting] = useState(true);
-  const [copyStatus, setCopyStatus] = useState("");
+
+  const user = session?.user as UserType; // Type assertion
+
+  const [profileUrl, setProfileUrl] = useState("");
+  const [acceptMessages, setAcceptMessages] = useState(true); // State for switch
+  const [copyStatus, setCopyStatus] = useState(""); // State for copy status message
+
+  // Fetch accept message status
+  const fetchAcceptMessageStatus = useCallback(async () => {
+    setIsSwitchLoading(true);
+    try {
+      const response = await axios.get<ApiResponse>('/api/accept-messages');
+      setAcceptMessages(response.data.isAcceptingMessage ?? true);
+    } catch (error) {
+      const axiosError = error as AxiosError<ApiResponse>;
+      toast({
+        title: "Error",
+        description: axiosError.response?.data.message || "Failed to fetch message settings",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSwitchLoading(false);
+    }
+  }, [toast]);
+
+  // Fetch received messages
+  const fetchReceivedMessages = useCallback(async (refresh: boolean = false) => {
+    setIsLoadingMessages(true);
+    try {
+      const response = await axios.get<ApiResponse>('/api/messages');
+      setReceivedMessages(response.data.messages || []);
+      if (refresh) {
+        toast({
+          title: "Messages Refreshed",
+          description: "Showing the latest anonymous messages.",
+        });
+      }
+    } catch (error) {
+      const axiosError = error as AxiosError<ApiResponse>;
+      toast({
+        title: "Error",
+        description: axiosError.response?.data.message || "Failed to fetch messages.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  }, [toast]);
+
+  // Fetch user's own posts
+  const fetchUserPosts = useCallback(async () => {
+    setIsLoadingPosts(true);
+    try {
+      // Assuming you'll have an API route to get posts by author ID
+      interface PostsResponse extends ApiResponse {
+        posts: any[];
+      }
+      const response = await axios.get<PostsResponse>(`/api/posts?authorId=${user._id}`);
+      setUserPosts(response.data.posts || []);
+    } catch (error) {
+      const axiosError = error as AxiosError<ApiResponse>;
+      toast({
+        title: "Error",
+        description: axiosError.response?.data.message || "Failed to fetch your posts.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingPosts(false);
+    }
+  }, [user?._id, toast]);
+
 
   useEffect(() => {
-    if (!session?.user?.username) return;
-    const fetchData = async () => {
-      const res = await axios.get(`/api/messages?username=${session.user.username}`);
-      setMessages(res.data.messages || []);
-      setAccepting(res.data.accepting ?? true);
-    };
-    fetchData();
-  }, [session?.user?.username]);
+    if (session && session.user) {
+      fetchAcceptMessageStatus();
+      fetchReceivedMessages();
+      fetchUserPosts(); // Fetch user's posts on load
+    }
+  }, [session, fetchAcceptMessageStatus, fetchReceivedMessages, fetchUserPosts]);
 
-  const handleDelete = async (id: string) => {
-    await axios.delete(`/api/messages/${id}`);
-    setMessages(msgs => msgs.filter((m: any) => m._id !== id));
+  useEffect(() => {
+    if (typeof window !== "undefined" && user?.username) {
+      setProfileUrl(`${window.location.protocol}//${window.location.host}/u/${user.username}`);
+    }
+  }, [user?.username]);
+
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      const response = await axios.delete<ApiResponse>(`/api/messages/${messageId}`);
+      toast({ title: response.data.message });
+      setReceivedMessages(receivedMessages.filter((msg) => String(msg._id) !== messageId));
+    } catch (error) {
+      const axiosError = error as AxiosError<ApiResponse>;
+      toast({
+        title: "Error",
+        description: axiosError.response?.data.message || "Failed to delete message.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleToggle = async () => {
-    await axios.post("/api/accept-messages", { acceptMessages: !accepting });
-    setAccepting(!accepting);
+  const handleSwitchChange = async () => {
+    setIsSwitchLoading(true);
+    try {
+      const response = await axios.post<ApiResponse>('/api/accept-messages', {
+        acceptMessages: !acceptMessages,
+      });
+      setAcceptMessages(!acceptMessages);
+      toast({ title: response.data.message, variant: "default" });
+    } catch (error) {
+      const axiosError = error as AxiosError<ApiResponse>;
+      toast({
+        title: "Error",
+        description: axiosError.response?.data.message || "Failed to update message acceptance status.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSwitchLoading(false);
+    }
+  };
+  const copyToClipboard = () => {
+    if (profileUrl) {
+      navigator.clipboard.writeText(profileUrl);
+      toast({
+        title: "Link Copied",
+        description: "Your unique profile link has been copied to clipboard!",
+      });
+      setCopyStatus("Your unique profile link has been copied to clipboard!");
+    }
   };
 
-  const handleCopy = () => {
-    const link = `${window.location.origin}/u/${session?.user?.username}`;
-    navigator.clipboard.writeText(link);
-    setCopyStatus("Copied!");
-    setTimeout(() => setCopyStatus(""), 1500);
-  };
+  if (status === "loading") {
+    return <div className="text-center py-10"><Loader2 className="h-8 w-8 animate-spin mx-auto" /></div>;
+  }
+  if (!session || !session.user) {
+    return <div className="text-center py-10">Please login to view your dashboard.</div>;
+  }
 
-  if (status === "loading") return <div className="text-center py-10">Loading...</div>;
-  if (!session) return <div className="text-center py-10">Please sign in</div>;
+  return ( 
+    <div className="my-8 mx-4 md:mx-8 lg:mx-auto p-6 bg-white rounded-lg shadow-xl w-full max-w-6xl">
+      <h1 className="text-4xl font-extrabold text-blue-700 mb-6 text-center">User Dashboard</h1>
 
-  return (
-    <div className="max-w-3xl mx-auto py-10 px-4">
-      <h1 className="text-3xl font-bold mb-6 text-center">Your Dashboard</h1>
-
-      {/* Profile Link */}
-      <div className="flex flex-col md:flex-row items-center gap-2 mb-6">
-        <Input
-          value={`${window.location.origin}/u/${session.user.username}`}
-          readOnly
-          className="flex-1"
-        />
-        <Button onClick={handleCopy} className="w-full md:w-auto mt-2 md:mt-0">
-          Copy Profile Link
-        </Button>
-        {copyStatus && <span className="ml-2 text-green-600">{copyStatus}</span>}
+      {/* Profile Link Section */}
+      <div className="mb-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <h2 className="text-lg font-semibold mb-2 text-blue-800">Your Anonymous Profile Link</h2>
+        <div className="flex items-center gap-2">
+          <Input
+            type="text"
+            value={profileUrl}
+            disabled
+            readOnly
+            className="flex-1 min-w-0"
+          />
+          <Button onClick={copyToClipboard} title="Copy Link" className="bg-blue-600 hover:bg-blue-700 text-white">
+            <Copy className="h-4 w-4 mr-2" /> Copy
+          </Button>
+        </div>
+        {copyStatus && <p className="text-green-600 text-sm mt-2">{copyStatus}</p>}
       </div>
 
-      {/* Accepting Messages Toggle */}
-      <div className="flex items-center gap-3 mb-8">
-        <label className="font-medium text-lg">Accepting Messages</label>
-        <button
-          onClick={handleToggle}
-          className={`relative w-12 h-6 rounded-full transition-colors duration-300
-            ${accepting ? "bg-green-500" : "bg-gray-300"}`}
-          aria-pressed={accepting}
-        >
-          <span
-            className={`absolute left-1 top-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-300
-              ${accepting ? "translate-x-6" : ""}`}
-          />
-        </button>
-        <span className={`text-sm ${accepting ? "text-green-600" : "text-gray-500"}`}>
-          {accepting ? "On" : "Off"}
+      {/* Message Acceptance Toggle */}
+      <div className="flex items-center space-x-3 mb-8">
+        <Switch
+          checked={acceptMessages}
+          onCheckedChange={handleSwitchChange}
+          disabled={isSwitchLoading}
+        />
+        <span className="font-medium text-lg text-gray-800">
+          Accept anonymous DMs: {acceptMessages ? 'On' : 'Off'}
         </span>
       </div>
 
-      {/* Messages Section */}
-      <h2 className="text-2xl font-semibold mb-4">Received Messages</h2>
-      {messages.length === 0 ? (
-        <div className="bg-gray-50 border border-dashed border-gray-300 rounded-lg p-8 text-center text-gray-500">
-          No messages yet. Share your profile link to start receiving anonymous rants!
+      <Separator className="my-8 bg-gray-200" />
+
+      {/* User's Own Posts Section */}
+      <div className="mb-8">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold text-blue-700">Your Rants</h2>
+          <Button
+            variant="outline"
+            onClick={() => fetchUserPosts()}
+            disabled={isLoadingPosts}
+            className="text-blue-600 border-blue-600 hover:bg-blue-50"
+          >
+            {isLoadingPosts ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <RefreshCcw className="h-4 w-4 mr-2" />
+            )}
+            Refresh Your Rants
+          </Button>
         </div>
-      ) : (
-        <div className="grid gap-5">
-          {messages.map((msg) => (
-            <div
-              key={msg._id}
-              className="bg-white border border-gray-200 rounded-lg shadow-sm p-5 flex flex-col md:flex-row md:items-center justify-between hover:shadow-md transition"
-            >
-              <div className="flex-1">
-                <p className="text-gray-800 mb-2 break-words">{msg.content}</p>
-                <span className="text-xs text-gray-400">
-                  {msg.createdAt ? formatDate(msg.createdAt) : ""}
-                </span>
-              </div>
-              <Button
-                variant="destructive"
-                onClick={() => handleDelete(msg._id)}
-                className="mt-3 md:mt-0 md:ml-4"
-              >
-                Delete
-              </Button>
-            </div>
-          ))}
+        {isLoadingPosts ? (
+          <div className="text-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-500" />
+            <p className="text-gray-500 mt-2">Loading your rants...</p>
+          </div>
+        ) : userPosts.length > 0 ? (
+          <div className="grid grid-cols-1 gap-6">
+            {userPosts.map((post) => (
+              <PostCard key={String(post._id)} post={post} /> // Reusing PostCard
+            ))}
+          </div>
+        ) : (
+          <div className="bg-gray-50 border border-dashed border-gray-300 rounded-lg p-8 text-center text-gray-500">
+            You haven't posted any rants yet. Time to speak your mind anonymously!
+            <Link href="/create-post">
+                <Button className="mt-4 bg-blue-600 hover:bg-blue-700 text-white">Create Your First Rant</Button>
+            </Link>
+          </div>
+        )}
+      </div>
+
+      <Separator className="my-8 bg-gray-200" />
+
+      {/* Received Anonymous Messages Section */}
+      <div className="mb-8">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold text-blue-700">Received Anonymous Messages</h2>
+          <Button
+            variant="outline"
+            onClick={() => fetchReceivedMessages(true)}
+            disabled={isLoadingMessages}
+            className="text-blue-600 border-blue-600 hover:bg-blue-50"
+          >
+            {isLoadingMessages ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <RefreshCcw className="h-4 w-4 mr-2" />
+            )}
+            Refresh Messages
+          </Button>
         </div>
-      )}
+        {isLoadingMessages ? (
+          <div className="text-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-500" />
+            <p className="text-gray-500 mt-2">Loading messages...</p>
+          </div>
+        ) : receivedMessages.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {receivedMessages.map((message) => (
+              <MessageCard
+                key={String(message._id)}
+                message={message}
+                onMessageDelete={handleDeleteMessage}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="bg-gray-50 border border-dashed border-gray-300 rounded-lg p-8 text-center text-gray-500">
+            No anonymous DMs to display. Share your profile link to start receiving feedback!
+          </div>
+        )}
+      </div>
     </div>
   );
 }

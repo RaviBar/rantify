@@ -4,6 +4,18 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "../auth/[...nextauth]/options";
 import { groupSchema } from "@/schemas/groupSchema";
 
+// GET: List all groups
+export async function GET() {
+  await dbConnect();
+  try {
+    const groups = await GroupModel.find({}).select("name description");
+    return Response.json({ success: true, groups });
+  } catch (error) {
+    return Response.json({ success: false, message: "Failed to fetch groups" }, { status: 500 });
+  }
+}
+
+// POST: Create a new group
 export async function POST(request: Request) {
   await dbConnect();
   const session = await getServerSession(authOptions);
@@ -18,6 +30,12 @@ export async function POST(request: Request) {
     return Response.json({ success: false, message: parse.error.errors[0].message }, { status: 400 });
   }
   const { name, description } = parse.data;
+
+  // Check if group already exists
+  const existingGroup = await GroupModel.findOne({ name });
+  if (existingGroup) {
+      return Response.json({ success: false, message: "A group with this name already exists." }, { status: 409 });
+  }
 
   const group = await GroupModel.create({
     name,

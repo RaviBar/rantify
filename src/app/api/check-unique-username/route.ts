@@ -1,10 +1,10 @@
 import dbConnect from "@/lib/dbConnect";
 import UserModel from "@/model/User";
 import { z } from "zod";
-import { usernameValidation } from "@/schemas/signUpSchema";
+import { signUpSchema } from "@/schemas/signUpSchema";
 
 const UsernameQuerySchema = z.object({
-  username: usernameValidation,
+  username: signUpSchema.shape.username,
 });
 
 export async function GET(request: Request) {
@@ -37,12 +37,9 @@ export async function GET(request: Request) {
 
     const { username } = result.data;
 
-    const existingVerifiedUser = await UserModel.findOne({
-      username,
-      isVerified: true,
-    });
+    const existingUser = await UserModel.findOne({ username });
 
-    if (existingVerifiedUser) {
+    if (existingUser) {
       return Response.json(
         {
           success: false,
@@ -57,7 +54,7 @@ export async function GET(request: Request) {
         success: true,
         message: "Username is available",
       },
-      { status: 400 }
+      { status: 200 }
     );
   } catch (error) {
     console.error("Error checking username."); 

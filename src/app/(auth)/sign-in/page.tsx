@@ -1,65 +1,179 @@
 "use client";
-import { useState } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation"; // Import useSearchParams
+import { signIn } from "next-auth/react"; // Import signIn function
+import { Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { signInSchema } from "@/schemas/signInSchema"; // Assuming you have this schema
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 export default function SignInPage() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [status, setStatus] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams(); // Get URL search parameters
+  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'; // Get callback URL or default to dashboard
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setStatus("");
-    const res = await signIn("credentials", {
-      redirect: false,
-      username,
-      password,
-    });
-    if (res?.ok) {
-      router.push("/dashboard");
-    } else {
-      setStatus("Invalid username or password.");
+  // Get error message from URL if present (e.g., from NextAuth.js redirect)
+  const urlError = searchParams.get('error');
+
+  // Zod resolver with the sign-in schema
+  const form = useForm<z.infer<typeof signInSchema>>({
+    resolver: zodResolver(signInSchema),
+    defaultValues: {
+      identifier: "", // This is username or email
+      password: "",
+    },
+  });
+
+  // Display toast for specific errors from NextAuth.js
+  useEffect(() => {
+    if (urlError) {
+      if (urlError === 'CredentialsSignin') {
+        toast({
+          title: "Login Failed",
+          description: "Invalid username/email or password.",
+          variant: "destructive",
+        });
+      } else if (urlError === 'Unauthorized') {
+        // This is the error thrown by NextAuth.js if authorize throws "Please verify your account"
+        toast({
+          title: "Account Not Verified",
+          description: "Please verify your account before logging in. Check your email for the verification code.",
+          variant: "destructive",
+        });
+        // Optionally, redirect to the verify page here if you want to force it from login page
+        // router.push(`/verify/${form.getValues('identifier')}`); // This would require getting username from identifier
+      } else {
+        toast({
+          title: "Login Failed",
+          description: urlError || "An unexpected error occurred. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }
+  }, [urlError, toast]);
+
+
+  const onSubmit = async (data: z.infer<typeof signInSchema>) => {
+    setIsSubmitting(true);
+    try {
+      const result = await signIn('credentials', {
+        redirect: false, // Prevent NextAuth.js from redirecting automatically
+        identifier: data.identifier,
+        password: data.password,
+      });
+
+      if (result?.error) {
+        // If the error is due to unverified account, NextAuth.js might return a specific error string
+        // or the authorize callback might throw an error that gets caught here.
+        // We've already handled the 'Unauthorized' error via URL param in useEffect.
+        // For other errors, show a generic message or specific ones if needed.
+        if (result.error === 'CredentialsSignin') {
+            toast({
+                title: "Login Failed",
+                description: "Invalid username/email or password.",
+                variant: "destructive",
+            });
+        } else {
+            toast({
+                title: "Login Failed",
+                description: result.error || "An unexpected error occurred. Please try again.",
+                variant: "destructive",
+            });
+        }
+      }
+
+      if (result?.ok && !result?.error) {
+        toast({
+          title: "Login Successful",
+          description: "Welcome back to Rantify!",
+        });
+        router.replace(callbackUrl); // Redirect to dashboard or original callback URL
+      }
+    } catch (error) {
+      console.error("Error during sign-in:", error);
+      toast({
+        title: "Login Failed",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-      <div className="w-full max-w-md bg-white p-8 rounded shadow">
-        <h1 className="text-2xl font-bold mb-6 text-center">Sign in to Rantify</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="text"
-            placeholder="Username"
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-            required
-            minLength={3}
-            maxLength={20}
-            className="w-full border rounded p-2"
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            required
-            minLength={6}
-            className="w-full border rounded p-2"
-          />
-          <button
-            type="submit"
-            className="w-full bg-blue-600 text-white py-2 rounded font-semibold hover:bg-blue-700 transition"
-          >
-            Sign In
-          </button>
-        </form>
-        {status && <p className="mt-4 text-center text-red-600">{status}</p>}
-        <p className="mt-4 text-center text-gray-600">
-        Don&apos;t have an account?{" "}
-        <a href="/sign-up" className="text-blue-600 hover:underline">Sign up</a>
-      </p>
+    <div className="flex justify-center items-center min-h-screen bg-gray-800">
+      <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-md">
+        <div className="text-center">
+          <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl mb-6 text-blue-700">
+            Welcome Back to Rantify
+          </h1>
+          <p className="mb-4 text-gray-600">
+            Sign in to continue your anonymous discussions
+          </p>
+        </div>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <FormField
+              name="identifier"
+              control={form.control}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Username or Email</FormLabel>
+                  <Input {...field} />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              name="password"
+              control={form.control}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Password</FormLabel>
+                  <Input {...field} type="password" />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Signing In...
+                </>
+              ) : (
+                "Sign In"
+              )}
+            </Button>
+          </form>
+        </Form>
+        <div className="text-center mt-4">
+          <p className="text-gray-600">
+            Not a member yet?{" "}
+            <Link href="/sign-up" className="text-blue-600 hover:text-blue-800">
+              Sign Up
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

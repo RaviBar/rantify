@@ -1,188 +1,113 @@
 "use client"
-import {useToast} from "@/hooks/use-toast"
-import { useCallback, useEffect, useState } from "react"
-import { Message, User } from "@/model/User"
-import { useSession } from "next-auth/react"
-import { acceptMessageSchema } from "@/schemas/acceptMessageSchema"
-import { ApiResponse } from "@/types/ApiResponse"
-import { title } from "process"
-import { ApiError } from "next/dist/server/api-utils"
-import { APIResource } from "openai/resource.mjs"
-import { RetryError } from "ai"
-import axios, { AxiosError } from 'axios';
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Switch } from "@/components/ui/switch"
-import { Separator } from "@/components/ui/separator"
-import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCcw } from "lucide-react";
-import MessageCard from "@/components/MessageCard"
+import Link from "next/link";
+import axios from "axios";
+import React, { useEffect, useState } from 'react';
+import { SidebarLeft } from '@/components/SidebarLeft'; // Ensure correct path
+import { Feed } from '@/components/Feed'; // Ensure correct path
+import { SidebarRight } from '@/components/SidebarRight'; // Ensure correct path
+import { Button } from "@/components/ui/button"; // Assuming Button is used
 
-const page = () =>{
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSwitchLoading, setIsSwitchLoading] = useState(false)
-
-  const{toast} = useToast()
-
-  const handleDeleteMessage = (messageId: string) => {
-    setMessages(messages.filter((message) => message._id !== messageId))
-  }
-  const {data: session, status} = useSession();
-
-  const form = useForm({
-    resolver: zodResolver(acceptMessageSchema)
-  })
-  const {register, watch, setValue} = form;
-  const acceptMessages = watch('acceptMessages');
-
-  const fetchAcceptMessage = useCallback(async() => {
-    setIsSwitchLoading(true)
-    try{
-      const response = await axios.get<ApiResponse>('api/accept-messages')
-      setValue('acceptMessages', response.data.isAcceptingMessage)
-    } catch(error){
-      const axiosError = error as AxiosError<ApiResponse>;
-      toast({
-        title: "Error",
-        description: axiosError.response?.data.message || "Failed to fetch message settings",
-        variant: "destructive"
-      })
-    }
-    finally{
-      setIsSwitchLoading(false)
-    }
-  }, [setValue])
-
-  const fetchMessages = useCallback(async (refresh: boolean = false) => {
-    setIsLoading(true)  
-    setIsSwitchLoading(false)
-    try{
-      const response = await axios.get<ApiResponse>('/api/messages')
-      setMessages(response.data.messages || [])
-      if(refresh){
-        toast({
-          title: "Refreshed Messages",
-          description: "showing latest Messages"
-        })
-      }
-    }catch(error){
-      const axiosError = error as AxiosError<ApiResponse>;
-      toast({
-        title: "Error",
-        description: axiosError.response?.data.message || "Failed to fetch message settings",
-        variant: "destructive"
-      })
-    }finally{
-      setIsLoading(false);
-      setIsSwitchLoading(false)
-    }
-  }, [setIsLoading, setMessages])
+export default function HomePage() {
+  const [posts, setPosts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]); // Changed to any[] to match API response
+  const [recent, setRecent] = useState<{ _id: string; content: string }[]>([]); // Changed to match Post model
 
   useEffect(() => {
-    if(!session || !session.user) return
-    fetchMessages()
-    fetchAcceptMessage()
-  }, [session, setValue, fetchAcceptMessage, fetchMessages])
-  
-  //handle switch change
-  const handleSwitchChange = async() => {
-    try{
-      const response = await axios.post<ApiResponse>('/api/accept-messages', {
-        acceptMessages: !acceptMessages
-      })
-      setValue('acceptMessages', !acceptMessages) 
-      toast({
-        title: response.data.message,
-        variant: "default"
-      })
-    }catch(error){
-      const axiosError = error as AxiosError<ApiResponse>;
-      toast({
-        title: "Error",
-        description: axiosError.response?.data.message || "Failed to fetch message settings",
-        variant: "destructive"
-      })
-    }
-  }
-  if (status === "loading") {
-    return <div>Loading...</div>; // Placeholder to ensure consistent server/client output
-  }
-  if(!session || !session.user){
-    return <div>Please login</div>
-  }
-    const{username} = session?.user as User
-    const [profileUrl, setProfileUrl] = useState("");
-
-    useEffect(() => {
-      if (typeof window !== "undefined" && username) {
-        setProfileUrl(`${window.location.protocol}//${window.location.host}/u/${username}`);
+    const fetchData = async () => {
+      try {
+        const [postsRes, categoriesRes, recentRes] = await Promise.all([
+          axios.get("/api/posts?sort=trending"),
+          axios.get("/api/categories"),
+          axios.get('/api/posts?sort=createdAt&limit=5') // Use 'createdAt' for recent, not just 'recent'
+        ]);
+        setPosts(postsRes.data.posts || []);
+        setCategories(categoriesRes.data.categories || []);
+        setRecent(recentRes.data.posts.map((p: any) => ({ _id: p._id, content: p.content.slice(0, 50) + '...' })) || []); // Map to new type
+      } catch (error) {
+        console.error("Failed to fetch initial data:", error);
+        // Optionally show a toast here
       }
-    }, [username]);
-
-    const copyToClipboard = () => {
-      navigator.clipboard.writeText(profileUrl)
-      toast({
-        title: "URL Copied",
-        description: "profile Url has been copied to"
-      })
-    }
+    };
+    fetchData();
+  }, []);
 
   return (
-    <div className="my-8 mx-4 md:mx-8 lg:mx-auto p-6 bg-white rounded w-full max-w-6xl">
-      <h1 className="text-4xl font-bold mb-4">User Dashboard</h1>
-      <div className="mb-4">
-          <h2 className="text-lg font-semibold mb-2">Copy Your Unique Link</h2>{' '}
-          <div className="flex items-center">
-            <input 
-            type="text"
-            value={profileUrl}
-            disabled
-            className="input input-bordered w-full p-2 mr-2"
-            />
-            <Button onClick={copyToClipboard}>Copy</Button>
+    <main className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 flex flex-col">
+      <div className="flex flex-1 max-w-7xl mx-auto w-full pt-8 gap-8 px-4">
+        {/* Left Sidebar for Categories */}
+        <aside className="hidden lg:block w-64 flex-shrink-0">
+          <div className="bg-white rounded-lg shadow p-4 sticky top-24"> {/* Adjusted sticky top */}
+            <h2 className="text-lg font-bold mb-4 text-blue-700">Categories</h2>
+            <ul className="space-y-2">
+              {categories.map((cat: any) => (
+                <li key={cat._id}> {/* Use cat._id if available for unique key */}
+                  <Link
+                    href={`/trending?category=${cat.name}`}
+                    className="block px-2 py-1 rounded hover:bg-blue-50 text-gray-700 font-medium"
+                  >
+                    {cat.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-6">
+              <Link href="/feedback">
+                <Button className="w-full bg-blue-600 text-white py-2 rounded font-semibold hover:bg-blue-700 transition">
+                  Product Feedback
+                </Button>
+              </Link>
+            </div>
           </div>
+        </aside>
+
+        {/* Main Content Area */}
+        <section className="flex-1 min-w-0"> {/* min-w-0 to prevent overflow */}
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <h1 className="text-3xl font-extrabold text-blue-700 mb-2">Rantify</h1>
+            <p className="text-gray-700 mb-4">
+              Welcome to <span className="font-bold">Rantify</span> — the anonymous, privacy-first social platform for open discussion, feedback, and whistleblowing. Join trending conversations, post honest reviews, or start a group chat—completely anonymously.
+            </p>
+            <div className="flex gap-4">
+              <Link href="/sign-up">
+                <Button className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition font-semibold">
+                  Get Started
+                </Button>
+              </Link>
+              <Link href="/trending">
+                <Button variant="outline" className="bg-gray-200 text-blue-700 px-6 py-2 rounded hover:bg-gray-300 transition font-semibold">
+                  Explore Trending
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          {/* Trending Feed Component */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-2xl font-bold mb-4">Trending Rants</h2>
+            {posts.length === 0 ? (
+              <div className="text-gray-500 text-center py-8">No trending posts yet.</div>
+            ) : (
+              <Feed posts={posts} /> {/* Use the Feed component here */}
+            )}
+          </div>
+        </section>
+
+        {/* Right Sidebar for Recent/Popular */}
+        <aside className="hidden lg:block w-80 flex-shrink-0">
+          <div className="bg-white rounded-lg shadow p-4 sticky top-24"> {/* Adjusted sticky top */}
+            <h2 className="text-lg font-bold mb-4 text-blue-700">Recent & Popular</h2>
+            <ul className="space-y-2">
+              {recent.map((item) => (
+                <li key={item._id}>
+                  <Link href={`/post/${item._id}`} className="block px-3 py-1 rounded hover:bg-gray-100 text-gray-700">
+                    {item.content}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </aside>
       </div>
-      <div className="mb-4">
-            <Switch
-            {...register('acceptMessages')}
-            checked={acceptMessages}
-            onCheckedChange={handleSwitchChange}
-            disabled={isSwitchLoading}
-            />
-            <span className="ml-2">
-              Accept messages: {acceptMessages ? 'On' : 'Off'}
-            </span>
-      </div>
-      <Separator/>
-      <Button
-      className="mt-4"
-      variant="outline"
-      onClick={(e: React.MouseEvent) => {
-        e.preventDefault();
-        fetchMessages(true);
-      }}
-      >
-        {isLoading ? (
-          <Loader2 className="h-4 w-4 animate-spin"/>
-        ) : (
-          <RefreshCcw className="h-4 w-4" />
-        )}
-      </Button>
-      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-          {messages.length>0 ? (
-            messages.map((message, index) => (
-              <MessageCard
-                key={String(message._id)}
-                message={message}
-                onMessageDelete={handleDeleteMessage}
-              />
-            ))
-          ) : (
-            <p>No messages to display.</p>
-          )}
-      </div>
-    </div>
+    </main>
   );
 }
-export default page;
