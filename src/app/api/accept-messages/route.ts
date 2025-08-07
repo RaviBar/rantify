@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   try {
     const updatedUser = await UserModel.findByIdAndUpdate(
       userId,
-      { isAcceptMessages: acceptMessages },
+      { isAcceptingMessages: acceptMessages },
       { new: true }
     );
 
@@ -60,6 +60,7 @@ export async function POST(request: Request) {
   }
 }
 
+
 export async function GET(request: Request) {
   await dbConnect();
 
@@ -68,29 +69,23 @@ export async function GET(request: Request) {
 
   if (!session || !session.user) {
     return Response.json(
-      {
-        success: false,
-        message: "Not Authenticated",
-      },
+      { success: false, message: "Not Authenticated" },
       { status: 401 }
     );
   }
 
-  const userId = user._id;
-
-  const foundUser = await UserModel.findById(userId);
-
   try {
+    const foundUser = await UserModel.findById(user._id);
+
     if (!foundUser) {
       return Response.json(
-        {
-          success: false,
-          message: "User not found",
-        },
+        { success: false, message: "User not found" },
         { status: 404 }
       );
     }
 
+    // THIS IS THE FIX
+    // The key must be 'isAcceptingMessages' (plural) to match the frontend
     return Response.json(
       {
         success: true,
@@ -99,11 +94,11 @@ export async function GET(request: Request) {
       { status: 200 }
     );
   } catch (error) {
-    console.log("failed to update user status to accept messages");
+    console.error("Error retrieving message acceptance status:", error);
     return Response.json(
       {
         success: false,
-        message: "Error in getting message acceptance status",
+        message: "Error retrieving message acceptance status.",
       },
       { status: 500 }
     );

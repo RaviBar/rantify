@@ -15,6 +15,6 @@ export interface ApiResponse {
     [key: string]: any;  // Allow for additional data properties
   };
   error?: string;
-  isAcceptingMessage?: boolean;
+  isAcceptingMessages?: boolean;
   messages?: Message[];
 }
