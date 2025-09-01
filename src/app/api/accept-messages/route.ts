@@ -83,9 +83,6 @@ export async function GET(request: Request) {
         { status: 404 }
       );
     }
-
-    // THIS IS THE FIX
-    // The key must be 'isAcceptingMessages' (plural) to match the frontend
     return Response.json(
       {
         success: true,

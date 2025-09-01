@@ -1,4 +1,3 @@
-// src/app/api/auth/[...nextauth]/options.ts
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
@@ -16,11 +15,10 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials: any): Promise<any> {
         console.log('--- Authorize Function Triggered ---');
-        console.log('Received credentials object:', credentials); // Log the entire object
+        console.log('Received credentials object:', credentials); 
 
         await dbConnect();
         try {
-          // Find user by either email or username, case-insensitively
           const user = await UserModel.findOne({
             $or: [
               { email: { $regex: new RegExp(`^${credentials.identifier}$`, 'i') } },

@@ -2,15 +2,15 @@
 import Link from "next/link";
 import axios from "axios";
 import React, { useEffect, useState } from 'react';
-import { SidebarLeft } from '@/components/SidebarLeft'; // Ensure correct path
-import { Feed } from '@/components/Feed'; // Ensure correct path
-import { SidebarRight } from '@/components/SidebarRight'; // Ensure correct path
-import { Button } from "@/components/ui/button"; // Assuming Button is used
+import { SidebarLeft } from '@/components/SidebarLeft'; 
+import { Feed } from '@/components/Feed'; 
+import { SidebarRight } from '@/components/SidebarRight'; 
+import { Button } from "@/components/ui/button"; 
 
 export default function HomePage() {
   const [posts, setPosts] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]); // Changed to any[] to match API response
-  const [recent, setRecent] = useState<{ _id: string; content: string }[]>([]); // Changed to match Post model
+  const [categories, setCategories] = useState<any[]>([]); 
+  const [recent, setRecent] = useState<{ _id: string; content: string }[]>([]); 
 
   useEffect(() => {
     const fetchData = async () => {
@@ -18,14 +18,13 @@ export default function HomePage() {
         const [postsRes, categoriesRes, recentRes] = await Promise.all([
           axios.get("/api/posts?sort=trending"),
           axios.get("/api/categories"),
-          axios.get('/api/posts?sort=createdAt&limit=5') // Use 'createdAt' for recent, not just 'recent'
+          axios.get('/api/posts?sort=createdAt&limit=5') 
         ]);
         setPosts(postsRes.data.posts || []);
         setCategories(categoriesRes.data.categories || []);
-        setRecent(recentRes.data.posts.map((p: any) => ({ _id: p._id, content: p.content.slice(0, 50) + '...' })) || []); // Map to new type
+        setRecent(recentRes.data.posts.map((p: any) => ({ _id: p._id, content: p.content.slice(0, 50) + '...' })) || []); 
       } catch (error) {
         console.error("Failed to fetch initial data:", error);
-        // Optionally show a toast here
       }
     };
     fetchData();
@@ -87,14 +86,14 @@ export default function HomePage() {
             {posts.length === 0 ? (
               <div className="text-gray-500 text-center py-8">No trending posts yet.</div>
             ) : (
-              <Feed posts={posts} /> {/* Use the Feed component here */}
+              <Feed posts={posts} />
             )}
           </div>
         </section>
 
         {/* Right Sidebar for Recent/Popular */}
         <aside className="hidden lg:block w-80 flex-shrink-0">
-          <div className="bg-white rounded-lg shadow p-4 sticky top-24"> {/* Adjusted sticky top */}
+          <div className="bg-white rounded-lg shadow p-4 sticky top-24"> 
             <h2 className="text-lg font-bold mb-4 text-blue-700">Recent & Popular</h2>
             <ul className="space-y-2">
               {recent.map((item) => (

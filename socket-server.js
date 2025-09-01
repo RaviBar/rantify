@@ -21,7 +21,7 @@ io.on("connection", (socket) => {
   // Handle sending a message to a group
   socket.on("group-message", ({ groupId, message, username }) => {
     // Broadcast the message to all clients in the group except the sender
-    socket.to(groupId).emit("group-message", { message, username });
+    io.to(groupId).emit("group-message", { message, username });
   });
 
   // Handle user disconnection

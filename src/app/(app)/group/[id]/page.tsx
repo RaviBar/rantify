@@ -1,12 +1,12 @@
 "use client";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { io, Socket } from "socket.io-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-interface Message {
+interface ChatMessage {
   message: string;
   username: string;
 }
@@ -16,56 +16,67 @@ export default function GroupPage() {
   const { data: session } = useSession();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [message, setMessage] = useState("");
-  const [chat, setChat] = useState<Message[]>([]);
+  const [chat, setChat] = useState<ChatMessage[]>([]);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Establish a new WebSocket connection
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chat]);
+
+  useEffect(() => {
+    if (!session?.user) return;
+
     const newSocket = io("http://localhost:3001");
     setSocket(newSocket);
 
-    // Join the specific group chat room
     newSocket.emit("join-group", groupId);
 
-    // Listen for incoming messages
-    newSocket.on("group-message", (newMessage: Message) => {
+    newSocket.on("group-message", (newMessage: ChatMessage) => {
       setChat((prevChat) => [...prevChat, newMessage]);
     });
 
-    // Clean up the connection when the component unmounts
     return () => {
       newSocket.disconnect();
     };
-  }, [groupId]);
+  }, [groupId, session]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim() && socket && session?.user?.username) {
-      const newMessage: Message = { message, username: session.user.username };
+      const newMessage: ChatMessage = { message, username: session.user.username };
+      
+      // Send the message to the server
       socket.emit("group-message", { groupId, ...newMessage });
-      setChat((prevChat) => [...prevChat, newMessage]); // Add own message to chat
       setMessage("");
     }
   };
+  
+  if (!session || !session.user) {
+    return <div className="text-center py-10">Please log in to join the chat.</div>;
+  }
 
   return (
-    <div className="max-w-2xl mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-6">Group Chat: {groupId}</h1>
-      <div className="bg-white rounded shadow p-4">
-        <div className="space-y-4 h-96 overflow-y-auto mb-4 border rounded p-4">
+    <div className="max-w-4xl mx-auto py-8 px-4">
+      <h1 className="text-3xl font-bold mb-2">Group Chat</h1>
+      <p className="text-lg text-blue-700 font-semibold mb-6">{groupId}</p>
+      <div className="bg-white rounded-lg shadow-xl p-4 flex flex-col h-[70vh]">
+        <div className="flex-1 space-y-4 overflow-y-auto mb-4 border rounded p-4 bg-gray-50">
           {chat.map((msg, index) => (
-            <div key={index} className={`flex ${msg.username === session?.user?.username ? 'justify-end' : 'justify-start'}`}>
-              <div className={`rounded-lg px-4 py-2 ${msg.username === session?.user?.username ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}>
-                <p className="font-bold">{msg.username}</p>
-                <p>{msg.message}</p>
+            <div key={index} className={`flex ${msg.username === session.user.username ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-xs md:max-w-md rounded-lg px-4 py-2 ${msg.username === session.user.username ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}>
+                <p className="font-bold text-sm">{msg.username}</p>
+                <p className="break-words">{msg.message}</p>
               </div>
             </div>
           ))}
+          <div ref={chatEndRef} />
         </div>
         <form onSubmit={handleSendMessage} className="flex gap-2">
           <Input
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Type your message..."
+            autoComplete="off"
           />
           <Button type="submit">Send</Button>
         </form>

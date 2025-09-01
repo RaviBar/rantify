@@ -5,11 +5,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation"; // Import useSearchParams
-import { signIn } from "next-auth/react"; // Import signIn function
+import { useRouter, useSearchParams } from "next/navigation"; 
+import { signIn } from "next-auth/react";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { signInSchema } from "@/schemas/signInSchema"; // Assuming you have this schema
+import { signInSchema } from "@/schemas/signInSchema";
 import {
   Form,
   FormControl,
@@ -25,13 +25,11 @@ export default function SignInPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
-  const searchParams = useSearchParams(); // Get URL search parameters
-  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'; // Get callback URL or default to dashboard
+  const searchParams = useSearchParams(); 
+  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'; 
 
-  // Get error message from URL if present (e.g., from NextAuth.js redirect)
   const urlError = searchParams.get('error');
 
-  // Zod resolver with the sign-in schema
   const form = useForm<z.infer<typeof signInSchema>>({
     resolver: zodResolver(signInSchema),
     defaultValues: {
@@ -40,7 +38,6 @@ export default function SignInPage() {
     },
   });
 
-  // Display toast for specific errors from NextAuth.js
   useEffect(() => {
     if (urlError) {
       if (urlError === 'CredentialsSignin') {
