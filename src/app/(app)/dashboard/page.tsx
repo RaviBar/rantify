@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { useForm } from "react-hook-form";
 import axios, { AxiosError } from "axios";
 import { useToast } from "@/hooks/use-toast";
 import { Message } from "@/model/User";
@@ -12,42 +11,32 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, RefreshCcw, Copy } from "lucide-react";
 import MessageCard from "@/components/MessageCard";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function DashboardPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSwitchLoading, setIsSwitchLoading] = useState(false);
+  const [isAcceptingMessages, setIsAcceptingMessages] = useState(false);
   const { toast } = useToast();
   const { data: session } = useSession();
-  const [formLoaded, setFormLoaded] = useState(false);
 
-const form = useForm({
-  defaultValues: {
-    acceptMessages: false,
-  },
-});
-const { register, watch, setValue } = form;
-const acceptMessages = watch('acceptMessages');
-
-const fetchAcceptMessageStatus = useCallback(async () => {
-  setIsSwitchLoading(true);
-  try {
-    const response = await axios.get<ApiResponse>('/api/accept-messages');
-    const status = response.data.isAcceptingMessages ?? false;
-    setValue('acceptMessages', status); // Set in form
-    setFormLoaded(true); // Mark form as ready to render
-  } catch (error) {
-    const axiosError = error as AxiosError<ApiResponse>;
-    toast({
-      title: "Error",
-      description: axiosError.response?.data.message || "Failed to fetch message settings",
-      variant: "destructive",
-    });
-  } finally {
-    setIsSwitchLoading(false);
-  }
-}, [setValue, toast]);
-
+  const fetchAcceptMessageStatus = useCallback(async () => {
+    setIsSwitchLoading(true);
+    try {
+      const response = await axios.get<ApiResponse>('/api/accept-messages');
+      setIsAcceptingMessages(response.data.isAcceptingMessages ?? false);
+    } catch (error) {
+      const axiosError = error as AxiosError<ApiResponse>;
+      toast({
+        title: "Error",
+        description: axiosError.response?.data.message || "Failed to fetch message settings",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSwitchLoading(false);
+    }
+  }, [toast]);
 
   const fetchMessages = useCallback(async (refresh: boolean = false) => {
     setIsLoading(true);
@@ -78,9 +67,9 @@ const fetchAcceptMessageStatus = useCallback(async () => {
   const handleSwitchChange = async () => {
     try {
       await axios.post<ApiResponse>('/api/accept-messages', {
-        acceptMessages: !acceptMessages,
+        acceptMessages: !isAcceptingMessages,
       });
-      setValue('acceptMessages', !acceptMessages);
+      setIsAcceptingMessages(!isAcceptingMessages);
       toast({ title: 'Message acceptance status updated successfully' });
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
@@ -105,61 +94,73 @@ const fetchAcceptMessageStatus = useCallback(async () => {
   }
 
   return (
-    <div className="my-8 mx-4 md:mx-8 lg:mx-auto p-6 bg-white rounded-lg shadow-xl w-full max-w-6xl">
-      <h1 className="text-4xl font-bold mb-4">User Dashboard</h1>
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold mb-2">Copy Your Unique Link</h2>
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            value={`${window.location.origin}/u/${session.user.username}`}
-            disabled
-            readOnly
-            className="input input-bordered w-full p-2 bg-gray-100"
-          />
-          <Button onClick={copyToClipboard}><Copy className="w-4 h-4 mr-2" /> Copy</Button>
-        </div>
+    <div className="container mx-auto max-w-4xl py-8">
+      <h1 className="text-4xl font-bold mb-8">Dashboard</h1>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Your Anonymous Link</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={`${window.location.origin}/u/${session.user.username}`}
+                disabled
+                readOnly
+                className="input input-bordered w-full p-2 bg-gray-100"
+              />
+              <Button onClick={copyToClipboard}><Copy className="w-4 h-4 mr-2" /> Copy</Button>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Message Settings</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <span>Accepting Messages</span>
+              <Switch
+                checked={isAcceptingMessages}
+                onCheckedChange={handleSwitchChange}
+                disabled={isSwitchLoading}
+              />
+            </div>
+          </CardContent>
+        </Card>
       </div>
-      {formLoaded ? (
-  <div className="mb-4 flex items-center">
-    <Switch
-      {...register('acceptMessages')}
-      checked={acceptMessages}
-      onCheckedChange={handleSwitchChange}
-      disabled={isSwitchLoading}
-    />
-    <span className="ml-2">
-      Accept Messages: {acceptMessages ? 'On' : 'Off'}
-    </span>
-  </div>
-) : (
-  <div className="mb-4">Loading toggle state...</div>
-)}
-      <Separator />
-      <Button
-        className="mt-4"
-        variant="outline"
-        onClick={() => fetchMessages(true)}
-        disabled={isLoading}
-      >
-        {isLoading ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <RefreshCcw className="h-4 w-4" />
-        )}
-      </Button>
-      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-        {messages.length > 0 ? (
-          messages.map((message) => (
-            <MessageCard
-              key={String(message._id)}
-              message={message}
-              onMessageDelete={() => setMessages(messages.filter((m) => m._id !== message._id))}
-            />
-          ))
-        ) : (
-          <p>No messages to display.</p>
-        )}
+
+      <Separator className="my-8" />
+
+      <div className="mt-8">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold">Your Messages</h2>
+          <Button
+            variant="outline"
+            onClick={() => fetchMessages(true)}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCcw className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {messages.length > 0 ? (
+            messages.map((message) => (
+              <MessageCard
+                key={String(message._id)}
+                message={message}
+                onMessageDelete={() => setMessages(messages.filter((m) => m._id !== message._id))}
+              />
+            ))
+          ) : (
+            <p>No messages to display.</p>
+          )}
+        </div>
       </div>
     </div>
   );
