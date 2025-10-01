@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-
+import Image from "next/image";
 const postSchema = z.object({
   content: z.string().min(1, "Content is required"),
   category: z.string().min(1, "Category is required"),
@@ -130,12 +130,14 @@ export default function CreatePostPage() {
               </label>
               <Input id="media" type="file" accept="image/*" onChange={onFileChange} />
               {preview && (
-                <img
+                <Image
                   src={preview}
-                  alt=""
+                  alt="preview"
+                  width={500}         
+                  height={200}        
+                  unoptimized
                   className="mt-2 h-48 w-full object-cover rounded-md"
-                  onLoad={() => {
-                    // Revoke after load to avoid memory leaks
+                  onLoadingComplete={() => {
                     if (preview.startsWith("blob:")) URL.revokeObjectURL(preview);
                   }}
                 />

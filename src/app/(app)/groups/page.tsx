@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-
+import { useCallback } from "react";
 interface Group {
   _id: string;
   name: string;
@@ -19,22 +19,22 @@ export default function GroupsPage() {
   const [newGroupDescription, setNewGroupDescription] = useState("");
   const { toast } = useToast();
 
-  const fetchGroups = async () => {
-    try {
-      const response = await axios.get("/api/groups");
-      setGroups(response.data.groups);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Could not fetch groups.",
-        variant: "destructive",
-      });
-    }
-  };
+  const fetchGroups = useCallback(async () => {
+  try {
+    const response = await axios.get("/api/groups");
+    setGroups(response.data.groups);
+  } catch (error) {
+    toast({
+      title: "Error",
+      description: "Could not fetch groups.",
+      variant: "destructive",
+    });
+  }
+}, [toast]);
 
-  useEffect(() => {
-    fetchGroups();
-  }, []);
+useEffect(() => {
+  fetchGroups();
+}, [fetchGroups]);
 
   const handleCreateGroup = async (e: React.FormEvent) => {
     e.preventDefault();

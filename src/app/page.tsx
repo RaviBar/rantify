@@ -5,14 +5,12 @@ import axios from 'axios';
 import PostCard from '@/components/PostCard';
 import SidebarRight from '@/components/SidebarRight';
 
-/* -------------------- Dark Mode Toggle (client-only) -------------------- */
 function ThemeToggle() {
   const [mounted, setMounted] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window === 'undefined') return 'light';
     const saved = localStorage.getItem('theme');
     if (saved === 'dark' || saved === 'light') return saved as any;
-    // fallback to system
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     return prefersDark ? 'dark' : 'light';
   });

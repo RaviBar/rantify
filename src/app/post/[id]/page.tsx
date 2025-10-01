@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowDown, ArrowUp } from "lucide-react";
-
+import Image from "next/image";
 const isMongoId = (s: string) => /^[0-9a-fA-F]{24}$/.test(s);
 
 interface CommentDTO {
@@ -108,7 +108,13 @@ export default function PostPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {post.mediaUrl && <img src={post.mediaUrl} alt="Post media" className="my-4 rounded-md" />}
+          {post.mediaUrl && 
+          <Image
+            src={post.mediaUrl}
+            alt="Post media"
+            width={800}       
+            height={600}      
+            className="my-4 rounded-md"/>}
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => handleVote(1)}>
               <ArrowUp />
