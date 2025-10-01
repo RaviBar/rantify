@@ -4,7 +4,6 @@ import axios from "axios";
 import React, { useEffect, useState } from 'react';
 import { SidebarLeft } from '@/components/SidebarLeft'; 
 import { Feed } from '@/components/Feed'; 
-import { SidebarRight } from '@/components/SidebarRight'; 
 import { Button } from "@/components/ui/button"; 
 
 export default function HomePage() {

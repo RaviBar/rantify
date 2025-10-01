@@ -1,23 +1,30 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, Model, Types } from "mongoose";
 
-export interface Post extends Document {
-  author: mongoose.Types.ObjectId;
+export interface Post {
+  _id: Types.ObjectId;
+  author: Types.ObjectId;
   content: string;
   mediaUrl?: string;
   category: string;
-  createdAt: Date;
   votes: number;
-  comments: mongoose.Types.ObjectId[];
+  comments: Types.ObjectId[]; // refs Comment
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-const PostSchema = new Schema<Post>({
-  author: { type: Schema.Types.ObjectId, ref: "User", required: true },
-  content: { type: String, required: true },
-  mediaUrl: String,
-  category: { type: String, required: true },
-  createdAt: { type: Date, default: Date.now },
-  votes: { type: Number, default: 0 },
-  comments: [{ type: Schema.Types.ObjectId, ref: "Comment" }]
-});
+const PostSchema = new Schema<Post>(
+  {
+    author: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    content: { type: String, required: true },
+    mediaUrl: String,
+    category: { type: String, required: true },
+    votes: { type: Number, default: 0 },
+    comments: [{ type: Schema.Types.ObjectId, ref: "Comment" }],
+  },
+  { timestamps: true } // provides createdAt/updatedAt
+);
 
-export default mongoose.models.Post || mongoose.model<Post>("Post", PostSchema);
+const PostModel: Model<Post> =
+  (mongoose.models.Post as Model<Post>) || mongoose.model<Post>("Post", PostSchema);
+
+export default PostModel;

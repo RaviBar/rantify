@@ -1,61 +1,100 @@
 "use client";
 
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import axios from 'axios';
-import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import axios from "axios";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
 
 const postSchema = z.object({
-  content: z.string().min(1, 'Content is required'),
-  category: z.string().min(1, 'Category is required'),
-  mediaUrl: z.string().optional(),
+  content: z.string().min(1, "Content is required"),
+  category: z.string().min(1, "Category is required"),
 });
+
+type FormValues = z.infer<typeof postSchema>;
 
 export default function CreatePostPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const { data: session } = useSession();
   const router = useRouter();
   const { toast } = useToast();
 
-  const form = useForm<z.infer<typeof postSchema>>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(postSchema),
-    defaultValues: {
-      content: '',
-      category: '',
-      mediaUrl: '',
-    },
+    defaultValues: { content: "", category: "" },
   });
 
-  const onSubmit = async (data: z.infer<typeof postSchema>) => {
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) {
+      setFile(null);
+      setPreview(null);
+      return;
+    }
+
+    // Basic guards
+    const maxMB = 5;
+    if (f.size > maxMB * 1024 * 1024) {
+      toast({
+        title: "Image too large",
+        description: `Please choose an image under ${maxMB} MB.`,
+        variant: "destructive",
+      });
+      e.target.value = "";
+      return;
+    }
+    if (!/^image\//.test(f.type)) {
+      toast({
+        title: "Invalid file",
+        description: "Please upload an image file.",
+        variant: "destructive",
+      });
+      e.target.value = "";
+      return;
+    }
+
+    setFile(f);
+    const url = URL.createObjectURL(f);
+    setPreview(url);
+  };
+
+  const onSubmit = async (data: FormValues) => {
     setIsSubmitting(true);
     try {
-      await axios.post('/api/posts', data);
-      toast({ title: 'Success', description: 'Post created successfully!' });
-      router.push('/');
+      const fd = new FormData();
+      fd.append("content", data.content);
+      fd.append("category", data.category);
+      if (file) fd.append("media", file); // field name 'media' is used in the API route below
+
+      await axios.post("/api/posts", fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      toast({ title: "Success", description: "Post created successfully!" });
+      router.push("/");
     } catch (error) {
-      console.error('Error creating post:', error);
+      console.error("Error creating post:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to create post. Please try again.',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to create post. Please try again.",
+        variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (!session) {
-    return <div>Please log in to create a post.</div>;
-  }
+  if (!session) return <div>Please log in to create a post.</div>;
 
   return (
     <div className="container mx-auto max-w-2xl py-8">
@@ -69,26 +108,40 @@ export default function CreatePostPage() {
               <label htmlFor="content" className="block text-sm font-medium text-gray-700">
                 Content
               </label>
-              <Textarea id="content" {...form.register('content')} />
+              <Textarea id="content" {...form.register("content")} />
               {form.formState.errors.content && (
                 <p className="text-red-500 text-sm">{form.formState.errors.content.message}</p>
               )}
             </div>
+
             <div>
               <label htmlFor="category" className="block text-sm font-medium text-gray-700">
                 Category
               </label>
-              <Input id="category" {...form.register('category')} />
+              <Input id="category" {...form.register("category")} />
               {form.formState.errors.category && (
                 <p className="text-red-500 text-sm">{form.formState.errors.category.message}</p>
               )}
             </div>
-            <div>
-              <label htmlFor="mediaUrl" className="block text-sm font-medium text-gray-700">
-                Media URL (Optional)
+
+            <div className="space-y-2">
+              <label htmlFor="media" className="block text-sm font-medium text-gray-700">
+                Image (Optional)
               </label>
-              <Input id="mediaUrl" {...form.register('mediaUrl')} />
+              <Input id="media" type="file" accept="image/*" onChange={onFileChange} />
+              {preview && (
+                <img
+                  src={preview}
+                  alt=""
+                  className="mt-2 h-48 w-full object-cover rounded-md"
+                  onLoad={() => {
+                    // Revoke after load to avoid memory leaks
+                    if (preview.startsWith("blob:")) URL.revokeObjectURL(preview);
+                  }}
+                />
+              )}
             </div>
+
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? (
                 <>
@@ -96,7 +149,7 @@ export default function CreatePostPage() {
                   Creating...
                 </>
               ) : (
-                'Create Post'
+                "Create Post"
               )}
             </Button>
           </form>

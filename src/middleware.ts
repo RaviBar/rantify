@@ -1,44 +1,63 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-export { default } from "next-auth/middleware";
-import { getToken } from "next-auth/jwt";
+// middleware.ts
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { getToken } from 'next-auth/jwt';
+
+// IMPORTANT: remove `export { default } from "next-auth/middleware";`
+// because we're providing a custom middleware now.
 
 export async function middleware(request: NextRequest) {
   const token = await getToken({ req: request });
   const { pathname } = request.nextUrl;
 
-  // Redirect authenticated users from auth pages to dashboard
+  const isLoggedIn = !!token;
+  const isAuthPage =
+    pathname === '/sign-in' ||
+    pathname === '/sign-up' ||
+    pathname.startsWith('/verify');
+
+  // Define protected areas (add more prefixes if needed)
+  const isProtected =
+    pathname.startsWith('/dashboard');
+
+  // 1) If logged in & visiting an auth page → go home
+  if (isLoggedIn && isAuthPage) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/';
+    url.search = ''; // clear query
+    return NextResponse.redirect(url);
+  }
+
+  // 2) If NOT logged in & visiting protected → go to sign-in
+  if (!isLoggedIn && isProtected) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/sign-in';
+    url.searchParams.set('callbackUrl', pathname); // optional
+    return NextResponse.redirect(url);
+  }
+
+  // 3) If logged in but NOT verified → only block protected pages
   if (
-    token &&
-    (pathname === "/sign-in" ||
-      pathname === "/sign-up" ||
-      pathname === "/verify" ||
-      pathname === "/")
+    isLoggedIn &&
+    (token as any)?.isVerified === false &&
+    isProtected &&
+    !pathname.startsWith('/verify')
   ) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    const url = request.nextUrl.clone();
+    url.pathname = `/verify/${(token as any)?.username ?? ''}`;
+    return NextResponse.redirect(url);
   }
 
-  // Redirect unauthenticated users from app pages to sign-in
-  if (!token && pathname.startsWith("/dashboard")) {
-    return NextResponse.redirect(new URL("/sign-in", request.url));
-  }
-
-  // If user is authenticated but not verified, redirect to verify page
-  // unless they are already on verify page or auth options
-  if (
-    token &&
-    !token.isVerified && // Check the isVerified flag from the token
-    !pathname.startsWith("/verify") && // Don't redirect if already on verify page
-    !pathname.startsWith("/api/auth") // Don't redirect if calling auth API routes
-  ) {
-    // You might want to allow access to specific public pages even if not verified
-    // e.g., if (pathname.startsWith('/public-posts')) return NextResponse.next();
-    return NextResponse.redirect(new URL(`/verify/${token.username}`, request.url));
-  }
-
+  // 4) Home ("/") & other public pages stay accessible for everyone
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/sign-in", "/sign-up", "/", "/dashboard/:path*", "/verify/:path*"],
+  // Do NOT include "/" in matcher. Keep it public.
+  matcher: [
+    '/sign-in',
+    '/sign-up',
+    '/verify/:path*',
+    '/dashboard/:path*',
+  ],
 };

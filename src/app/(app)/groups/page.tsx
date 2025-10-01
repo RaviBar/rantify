@@ -87,12 +87,15 @@ export default function GroupsPage() {
         <div className="space-y-4">
           {groups.length > 0 ? (
             groups.map((group) => (
-              <Link key={group._id} href={`/group/${group.name}`} passHref>
-                <div className="bg-white rounded-lg shadow p-4 transition hover:shadow-md cursor-pointer">
-                  <h2 className="font-bold text-xl text-blue-700">{group.name}</h2>
-                  <p className="text-gray-600">{group.description}</p>
-                </div>
+              <Link
+                key={group._id}
+                href={`/group/${encodeURIComponent(group.name)}`}
+                className="block bg-white rounded-lg shadow p-4 transition hover:shadow-md cursor-pointer"
+              >
+                <h2 className="font-bold text-xl text-blue-700">{group.name}</h2>
+                <p className="text-gray-600">{group.description}</p>
               </Link>
+
             ))
           ) : (
             <p className="text-gray-500">No groups available. Why not create one?</p>

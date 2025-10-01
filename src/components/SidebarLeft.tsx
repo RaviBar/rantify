@@ -10,8 +10,9 @@ export function SidebarLeft({ categories }: SidebarLeftProps) {
       <ul className="space-y-2">
         {categories.map((cat) => (
           <li key={cat}>
-            <Link href={`/category/${cat.toLowerCase()}`}>
-              <a className="block px-3 py-1 rounded hover:bg-gray-100">{cat}</a>
+            <Link href={`/category/${cat.toLowerCase()}`}
+            className="block px-3 py-1 rounded hover:bg-gray-100">
+              {cat}
             </Link>
           </li>
         ))}

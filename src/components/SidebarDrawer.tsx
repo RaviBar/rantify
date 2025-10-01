@@ -19,17 +19,21 @@ export function SidebarDrawer({ open, onClose, username }: SidebarDrawerProps) {
           <X size={24} />
         </button>
         <nav className="mt-8 space-y-4">
-          <Link href={`/u/${username}`}>
-            <a className="block px-3 py-2 rounded hover:bg-gray-100">Your Profile</a>
+          <Link href={`/u/${username}`}
+          className="block px-3 py-2 rounded hover:bg-gray-100">
+            Your Profile
           </Link>
-          <Link href="/dashboard">
-            <a className="block px-3 py-2 rounded hover:bg-gray-100">Chat</a>
+          <Link href="/dashboard"
+          className="block px-3 py-2 rounded hover:bg-gray-100">
+            Chat
           </Link>
-          <Link href="/groups">
-            <a className="block px-3 py-2 rounded hover:bg-gray-100">Groups</a>
+          <Link href="/groups"
+          className="block px-3 py-2 rounded hover:bg-gray-100">
+            Groups
           </Link>
-          <Link href="/about">
-            <a className="block px-3 py-2 rounded hover:bg-gray-100">About</a>
+          <Link href="/about"
+          className="block px-3 py-2 rounded hover:bg-gray-100">
+            About
           </Link>
           <button onClick={() => signOut()} className="w-full text-left px-3 py-2 rounded hover:bg-gray-100">
             Logout

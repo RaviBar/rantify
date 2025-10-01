@@ -16,5 +16,10 @@ export interface ApiResponse {
   };
   error?: string;
   isAcceptingMessages?: boolean;
-  messages?: Message[];
+  messages?: MessageDTO[];
 }
+export type MessageDTO = {
+  _id: string;
+  content: string;
+  createdAt: string;
+};

@@ -1,3 +1,4 @@
+// Navbar.tsx (sirf changes highlight)
 'use client';
 
 import React, { useState } from 'react';
@@ -5,15 +6,11 @@ import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { PlusSquare, Search, User, LogOut, LogIn } from 'lucide-react';
+import { PlusSquare, Search, User, LogOut, LogIn, Link as LinkIcon } from 'lucide-react';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export default function Navbar() {
   const { data: session } = useSession();
@@ -48,7 +45,17 @@ export default function Navbar() {
           </div>
         )}
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
+          {/* NEW: visible only when logged in */}
+          {session && user && (
+            <Link href="/dashboard">
+              <Button className="gap-2" title="Go to your dashboard & copy your profile link">
+                <LinkIcon className="h-4 w-4" />
+                Get profile link
+              </Button>
+            </Link>
+          )}
+
           {session && user ? (
             <>
               <Link href="/create-post">

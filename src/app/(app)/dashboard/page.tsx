@@ -5,19 +5,19 @@ import { useSession } from "next-auth/react";
 import axios, { AxiosError } from "axios";
 import { useToast } from "@/hooks/use-toast";
 import { Message } from "@/model/User";
-import { ApiResponse } from "@/types/ApiResponse";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, RefreshCcw, Copy } from "lucide-react";
 import MessageCard from "@/components/MessageCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MessageDTO, ApiResponse } from "@/types/ApiResponse";
 
 export default function DashboardPage() {
-  const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSwitchLoading, setIsSwitchLoading] = useState(false);
   const [isAcceptingMessages, setIsAcceptingMessages] = useState(false);
+  const [messages, setMessages] = useState<MessageDTO[]>([]);
   const { toast } = useToast();
   const { data: session } = useSession();
 
@@ -42,7 +42,7 @@ export default function DashboardPage() {
     setIsLoading(true);
     try {
       const response = await axios.get<ApiResponse>('/api/messages');
-      setMessages(response.data.messages || []);
+      setMessages(response.data.messages ?? []);
       if (refresh) {
         toast({ title: "Messages Refreshed" });
       }
