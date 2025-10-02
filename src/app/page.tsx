@@ -5,64 +5,6 @@ import axios from 'axios';
 import PostCard from '@/components/PostCard';
 import SidebarRight from '@/components/SidebarRight';
 
-function ThemeToggle() {
-  const [mounted, setMounted] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    if (typeof window === 'undefined') return 'light';
-    const saved = localStorage.getItem('theme');
-    if (saved === 'dark' || saved === 'light') return saved as any;
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    return prefersDark ? 'dark' : 'light';
-  });
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
-    const root = document.documentElement;
-    if (theme === 'dark') root.classList.add('dark');
-    else root.classList.remove('dark');
-    localStorage.setItem('theme', theme);
-  }, [theme, mounted]);
-
-  if (!mounted) {
-    // Avoid hydration mismatch; render a simple placeholder
-    return (
-      <button
-        className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-300/70 bg-white text-slate-700 dark:border-slate-700/60 dark:bg-slate-900 dark:text-slate-200"
-        aria-label="Toggle theme"
-      >
-        ○
-      </button>
-    );
-  }
-
-  return (
-    <button
-      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-      className="group inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-300/70 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-slate-700/60 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-      aria-label="Toggle dark mode"
-      title="Toggle dark mode"
-    >
-      {/* Sun / Moon */}
-      <svg
-        className="h-5 w-5 opacity-100 group-active:scale-95 transition"
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24" fill="currentColor"
-      >
-        {theme === 'dark' ? (
-          // Sun (show when dark to indicate switching to light)
-          <path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Zm0 4a1 1 0 0 1-1-1v-1.25a1 1 0 1 1 2 0V21a1 1 0 0 1-1 1ZM12 3a1 1 0 0 0 1-1V.75a1 1 0 1 0-2 0V2a1 1 0 0 0 1 1Zm9 9a1 1 0 0 1-1 1h-1.25a1 1 0 1 1 0-2H20a1 1 0 0 1 1 1ZM5.25 12a1 1 0 0 1-1 1H3a1 1 0 1 1 0-2h1.25a1 1 0 0 1 1 1Zm13.657 6.657a1 1 0 0 1-1.414 1.414l-.884-.884a1 1 0 0 1 1.414-1.414l.884.884ZM6.391 5.223a1 1 0 0 0 1.414-1.414l-.884-.884A1 1 0 0 0 5.507 4.23l.884.993Zm11.266-1.414a1 1 0 0 1 0 1.414l-.884.884A1 1 0 1 1 15.36 4.7l.884-.884a1 1 0 0 1 1.414-.007ZM7.275 18.187a1 1 0 1 0-1.414-1.414l-.884.884a1 1 0 0 0 1.414 1.414l.884-.884Z" />
-        ) : (
-          // Moon (show when light to indicate switching to dark)
-          <path d="M21.64 13.03A9 9 0 1 1 10.97 2.36a.75.75 0 0 1 .85.99 7.5 7.5 0 0 0 9.79 9.79.75.75 0 0 1 .03 1.89Z" />
-        )}
-      </svg>
-    </button>
-  );
-}
 
 /* -------------------- Debounce -------------------- */
 function useDebouncedValue<T>(value: T, delay = 300) {

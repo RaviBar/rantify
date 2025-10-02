@@ -2,11 +2,15 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
-import PostModel from "@/model/Post"
+import PostModel from "@/model/Post";
+import CommentModel from "@/model/Comment"; // Import the Comment model
 import type { PostLean } from "@/types/post-lean";
 import { isValidObjectId } from "mongoose";
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(
+  _req: Request,
+  { params }: { params: { id: string } }
+) {
   try {
     await dbConnect();
 
@@ -19,12 +23,15 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       .populate({ path: "author", select: "username" })
       .populate({
         path: "comments",
+        model: CommentModel, // Explicitly provide the model for population
         select: "content author createdAt",
         populate: { path: "author", select: "username" },
       })
       .lean<PostLean | null>();
 
-    if (!post) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!post) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
 
     const normalized = {
       _id: String(post._id),

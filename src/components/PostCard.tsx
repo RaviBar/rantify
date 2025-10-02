@@ -5,6 +5,7 @@ import Image from 'next/image';
 interface PostCardProps {
   post: {
     _id: string;
+    title?: string;
     content?: string;
     category?: string | { name?: string };
     createdAt?: string;
@@ -30,12 +31,9 @@ export default function PostCard({ post }: PostCardProps) {
     if (isCategoryObject(post.category)) return post.category.name ?? "Uncategorized";
     return "Uncategorized";
   })();
-  const title = post.content ?? 'Untitled';
-  let imageSrc = '/images/placeholder.png';
-  if (post.mediaUrl && isValidNextImageSrc(post.mediaUrl)) imageSrc = post.mediaUrl;
-  else if (post.mediaUrl && process.env.NODE_ENV === 'development') {
-    console.warn(`Post ${post._id} has invalid mediaUrl:`, post.mediaUrl);
-  }
+  const title = post.title ?? 'Untitled';
+
+  const imageSrc = post.mediaUrl && isValidNextImageSrc(post.mediaUrl) ? post.mediaUrl : null;
 
   return (
     <article
@@ -43,17 +41,19 @@ export default function PostCard({ post }: PostCardProps) {
       tabIndex={-1}
     >
       <div className="flex gap-4">
-        <div className="w-28 h-20 relative flex-shrink-0 rounded overflow-hidden bg-slate-50">
-          <Image
-            src={imageSrc}
-            alt={`Media for post by ${post.author?.username || 'anon'}`}
-            fill
-            sizes="112px"
-            style={{ objectFit: 'cover' }}
-            className="rounded"
-            priority={false}
-          />
-        </div>
+        {imageSrc && (
+          <div className="w-28 h-20 relative flex-shrink-0 rounded overflow-hidden bg-slate-50">
+            <Image
+              src={imageSrc}
+              alt={`Media for post by ${post.author?.username || 'anon'}`}
+              fill
+              sizes="112px"
+              style={{ objectFit: 'cover' }}
+              className="rounded"
+              priority={false}
+            />
+          </div>
+        )}
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">

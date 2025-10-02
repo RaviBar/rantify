@@ -14,7 +14,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import Image from "next/image";
+
 const postSchema = z.object({
+  title: z.string().min(1, "Title is required"),
   content: z.string().min(1, "Content is required"),
   category: z.string().min(1, "Category is required"),
 });
@@ -31,7 +33,7 @@ export default function CreatePostPage() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(postSchema),
-    defaultValues: { content: "", category: "" },
+    defaultValues: { title: "", content: "", category: "" },
   });
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -42,7 +44,6 @@ export default function CreatePostPage() {
       return;
     }
 
-    // Basic guards
     const maxMB = 5;
     if (f.size > maxMB * 1024 * 1024) {
       toast({
@@ -72,9 +73,10 @@ export default function CreatePostPage() {
     setIsSubmitting(true);
     try {
       const fd = new FormData();
+      fd.append("title", data.title);
       fd.append("content", data.content);
       fd.append("category", data.category);
-      if (file) fd.append("media", file); // field name 'media' is used in the API route below
+      if (file) fd.append("media", file);
 
       await axios.post("/api/posts", fd, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -105,6 +107,15 @@ export default function CreatePostPage() {
         <CardContent>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div>
+              <label htmlFor="title" className="block text-sm font-medium text-gray-700">
+                Title
+              </label>
+              <Input id="title" {...form.register("title")} />
+              {form.formState.errors.title && (
+                <p className="text-red-500 text-sm">{form.formState.errors.title.message}</p>
+              )}
+            </div>
+            <div>
               <label htmlFor="content" className="block text-sm font-medium text-gray-700">
                 Content
               </label>
@@ -113,7 +124,6 @@ export default function CreatePostPage() {
                 <p className="text-red-500 text-sm">{form.formState.errors.content.message}</p>
               )}
             </div>
-
             <div>
               <label htmlFor="category" className="block text-sm font-medium text-gray-700">
                 Category
@@ -123,7 +133,6 @@ export default function CreatePostPage() {
                 <p className="text-red-500 text-sm">{form.formState.errors.category.message}</p>
               )}
             </div>
-
             <div className="space-y-2">
               <label htmlFor="media" className="block text-sm font-medium text-gray-700">
                 Image (Optional)
@@ -133,8 +142,8 @@ export default function CreatePostPage() {
                 <Image
                   src={preview}
                   alt="preview"
-                  width={500}         
-                  height={200}        
+                  width={500}
+                  height={200}
                   unoptimized
                   className="mt-2 h-48 w-full object-cover rounded-md"
                   onLoadingComplete={() => {
@@ -143,7 +152,6 @@ export default function CreatePostPage() {
                 />
               )}
             </div>
-
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? (
                 <>

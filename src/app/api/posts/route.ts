@@ -1,4 +1,3 @@
-// app/api/posts/route.ts
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
@@ -87,11 +86,12 @@ export async function POST(req: Request) {
     if (!authorId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const formData = await req.formData();
+    const title = String(formData.get("title") ?? "");
     const content = String(formData.get("content") ?? "");
     const category = String(formData.get("category") ?? "");
     const media = formData.get("media");
 
-    if (!content || !category)
+    if (!title || !content || !category)
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
 
     let mediaUrl: string | undefined;
@@ -110,21 +110,18 @@ export async function POST(req: Request) {
 
     const doc = await PostModel.create({
       author: authorId,
+      title,
       content,
       category,
       mediaUrl,
     });
 
     return NextResponse.json(
-      { success: true, post: { id: String(doc._id), content, category, mediaUrl } },
+      { success: true, post: { id: String(doc._id), title, content, category, mediaUrl } },
       { status: 201 }
     );
   } catch (err) {
     console.error("POST /api/posts error", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
-}
-
-export function OPTIONS() {
-  return NextResponse.json({}, { status: 204 });
 }

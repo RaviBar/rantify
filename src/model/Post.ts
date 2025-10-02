@@ -3,6 +3,7 @@ import mongoose, { Schema, Model, Types } from "mongoose";
 export interface Post {
   _id: Types.ObjectId;
   author: Types.ObjectId;
+  title: string; // Added title
   content: string;
   mediaUrl?: string;
   category: string;
@@ -15,6 +16,7 @@ export interface Post {
 const PostSchema = new Schema<Post>(
   {
     author: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    title: { type: String, required: true }, // Added title
     content: { type: String, required: true },
     mediaUrl: String,
     category: { type: String, required: true },

@@ -3,6 +3,7 @@ import VoteModel from "@/model/Vote";
 import PostModel from "@/model/Post";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../auth/[...nextauth]/options";
+import mongoose from "mongoose";
 
 // POST: Upvote or downvote a post
 export async function POST(request: Request) {
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
 
   // Update post vote count
   const votes = await VoteModel.aggregate([
-    { $match: { post: postId } },
+    { $match: { post: new mongoose.Types.ObjectId(postId) } },
     { $group: { _id: "$post", total: { $sum: "$value" } } }
   ]);
   const totalVotes = votes[0]?.total || 0;

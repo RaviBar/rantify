@@ -1,16 +1,16 @@
-// Navbar.tsx (sirf changes highlight)
 'use client';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useSession, signOut } from 'next-auth/react';
+import { useSession, signOut } from "next-auth/react";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { PlusSquare, Search, User, LogOut, LogIn, Link as LinkIcon } from 'lucide-react';
+import { PlusSquare, Search, User, LogOut, LogIn, Link as LinkIcon, MessageSquare } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function Navbar() {
   const { data: session } = useSession();
@@ -25,9 +25,9 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-white shadow-sm sticky top-0 z-50">
+    <nav className="bg-white shadow-sm sticky top-0 z-50 dark:bg-slate-900 dark:border-b dark:border-slate-800">
       <div className="container mx-auto flex items-center justify-between py-2 px-4">
-        <Link href="/" className="text-2xl font-bold text-gray-900">
+        <Link href="/" className="text-2xl font-bold text-gray-900 dark:text-gray-100">
           Rantify
         </Link>
 
@@ -46,18 +46,14 @@ export default function Navbar() {
         )}
 
         <div className="flex items-center gap-2 sm:gap-4">
-          {/* NEW: visible only when logged in */}
+          <ThemeToggle />
           {session && user && (
-            <Link href="/dashboard">
-              <Button className="gap-2" title="Go to your dashboard & copy your profile link">
-                <LinkIcon className="h-4 w-4" />
-                Get profile link
-              </Button>
-            </Link>
-          )}
-
-          {session && user ? (
             <>
+              <Link href="/groups">
+                <Button variant="ghost" size="icon" title="Groups">
+                  <MessageSquare size={24} />
+                </Button>
+              </Link>
               <Link href="/create-post">
                 <Button variant="ghost" size="icon" title="Create Post">
                   <PlusSquare size={24} />
@@ -82,7 +78,9 @@ export default function Navbar() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </>
-          ) : (
+          )}
+
+          {!session && (
             <Link href="/sign-in">
               <Button>
                 <LogIn className="mr-2 h-4 w-4" />

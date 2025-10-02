@@ -20,22 +20,25 @@ export default function GroupPage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chat]);
 
   useEffect(() => {
     if (!session?.user) return;
 
-    const newSocket = io("http://localhost:3001");
+    const newSocket = io();
     setSocket(newSocket);
 
     newSocket.emit("join-group", groupId);
 
-    newSocket.on("group-message", (newMessage: ChatMessage) => {
+    const handleNewMessage = (newMessage: ChatMessage) => {
       setChat((prevChat) => [...prevChat, newMessage]);
-    });
+    };
+
+    newSocket.on("group-message", handleNewMessage);
 
     return () => {
+      newSocket.off("group-message", handleNewMessage);
       newSocket.disconnect();
     };
   }, [groupId, session]);
@@ -43,16 +46,26 @@ export default function GroupPage() {
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim() && socket && session?.user?.username) {
-      const newMessage: ChatMessage = { message, username: session.user.username };
-      
-      // Send the message to the server
+      const newMessage: ChatMessage = {
+        message,
+        username: session.user.username,
+      };
+
+      // Optimistically update the sender's UI
+      setChat((prevChat) => [...prevChat, newMessage]);
+
+      // Send the message to the server to be broadcast to others
       socket.emit("group-message", { groupId, ...newMessage });
       setMessage("");
     }
   };
-  
+
   if (!session || !session.user) {
-    return <div className="text-center py-10">Please log in to join the chat.</div>;
+    return (
+      <div className="text-center py-10">
+        Please log in to join the chat.
+      </div>
+    );
   }
 
   return (
@@ -62,8 +75,21 @@ export default function GroupPage() {
       <div className="bg-white rounded-lg shadow-xl p-4 flex flex-col h-[70vh]">
         <div className="flex-1 space-y-4 overflow-y-auto mb-4 border rounded p-4 bg-gray-50">
           {chat.map((msg, index) => (
-            <div key={index} className={`flex ${msg.username === session.user.username ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-xs md:max-w-md rounded-lg px-4 py-2 ${msg.username === session.user.username ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}>
+            <div
+              key={index}
+              className={`flex ${
+                msg.username === session.user.username
+                  ? "justify-end"
+                  : "justify-start"
+              }`}
+            >
+              <div
+                className={`max-w-xs md:max-w-md rounded-lg px-4 py-2 ${
+                  msg.username === session.user.username
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-200 text-gray-800"
+                }`}
+              >
                 <p className="font-bold text-sm">{msg.username}</p>
                 <p className="break-words">{msg.message}</p>
               </div>
